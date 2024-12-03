@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { scenarios } from "../data/data";
 
 const Scenario = ({ scenarioKey, restart }) => {
@@ -15,8 +15,27 @@ const Scenario = ({ scenarioKey, restart }) => {
     currentStep === "start"
       ? scenario
       : currentStep === "final"
-      ? scenario.options[selectedOption].nextOptions[selectedSubOption]
+      ? scenario.options[selectedOption]?.nextOptions[selectedSubOption]
       : scenario.options[selectedOption]?.nextOptions;
+
+  // Determine the type for background color
+  const currentType =
+    currentStep === "final"
+      ? currentData?.type_finalOutcome
+      : currentData
+      ? scenario.options[selectedOption]?.type_consequence
+      : null;
+
+  // Update background color based on the type
+  useEffect(() => {
+    if (currentType === "negative") {
+      document.body.style.backgroundColor = "red";
+    } else if (currentType === "positive") {
+      document.body.style.backgroundColor = "blue";
+    } else {
+      document.body.style.backgroundColor = "lavender"; // Default for other cases
+    }
+  }, [currentType, currentStep, selectedOption, selectedSubOption]);
 
   // Handle option selection
   const handleOptionClick = (optionKey) => {
@@ -24,7 +43,6 @@ const Scenario = ({ scenarioKey, restart }) => {
       currentStep === "start"
         ? scenario.options[optionKey]
         : currentData[optionKey];
-
     // Save the current state in history for back navigation
     setHistory((prevHistory) => [
       ...prevHistory,
@@ -35,7 +53,6 @@ const Scenario = ({ scenarioKey, restart }) => {
         consequence: lastConsequence,
       },
     ]);
-
     // Update selected option and consequence
     setLastConsequence(selectedOptionData?.consequence || "");
     if (currentStep === "start") {
@@ -61,11 +78,21 @@ const Scenario = ({ scenarioKey, restart }) => {
     }
   };
 
+  // Handle Restart button
+  const handleRestart = () => {
+    setHistory([]);
+    setCurrentStep("start");
+    setSelectedOption(null);
+    setSelectedSubOption(null);
+    setLastConsequence("");
+    document.body.style.backgroundColor = "lavender"; // Reset background to lavender
+    restart(); // Call the restart callback
+  };
+
   return (
     <div>
       {/* Display scenario title */}
       <h1>{scenario.title}</h1>
-
       {/* Display description, consequence, or final outcome */}
       <p>
         {currentStep === "start"
@@ -74,11 +101,10 @@ const Scenario = ({ scenarioKey, restart }) => {
           ? currentData?.finalOutcome // Show final outcome on final step
           : lastConsequence || ""} {/* Show the consequence */}
       </p>
-
       {currentStep === "final" ? (
         // If on the final step, show restart button
         <div>
-          <button onClick={restart}>Restart</button>
+          <button onClick={handleRestart}>Restart</button>
         </div>
       ) : (
         // Display options and "Back" button
@@ -92,7 +118,6 @@ const Scenario = ({ scenarioKey, restart }) => {
               {value.text}
             </button>
           ))}
-
           {/* Show Back button if there's history */}
           {history.length > 0 && (
             <button onClick={handleBackClick}>Back</button>
