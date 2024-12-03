@@ -2,51 +2,62 @@ import React, { useState } from "react";
 import { scenarios } from "../data/data";
 
 const Scenario = ({ scenarioKey, restart }) => {
-  const [history, setHistory] = useState([]); // Store history of steps
+  const [history, setHistory] = useState([]); // Store navigation history
   const [currentStep, setCurrentStep] = useState("start"); // Track current step
-  const [selectedOption, setSelectedOption] = useState(null); // Track selected option
+  const [selectedOption, setSelectedOption] = useState(null); // Track the current option
+  const [selectedSubOption, setSelectedSubOption] = useState(null); // Track sub-options for nextOptions
+  const [lastConsequence, setLastConsequence] = useState(""); // Track consequence for the last step
 
-  const scenario = scenarios[scenarioKey]; // Fetch scenario based on key
+  const scenario = scenarios[scenarioKey]; // Fetch scenario by key
 
-  // Determine current data to display
+  // Determine the current data to display based on step
   const currentData =
     currentStep === "start"
       ? scenario
       : currentStep === "final"
-      ? scenario.options[selectedOption]
+      ? scenario.options[selectedOption].nextOptions[selectedSubOption]
       : scenario.options[selectedOption]?.nextOptions;
 
   // Handle option selection
   const handleOptionClick = (optionKey) => {
-    // Save the current state in history for "Back" navigation
+    const selectedOptionData =
+      currentStep === "start"
+        ? scenario.options[optionKey]
+        : currentData[optionKey];
+
+    // Save the current state in history for back navigation
     setHistory((prevHistory) => [
       ...prevHistory,
-      { step: currentStep, option: selectedOption },
+      {
+        step: currentStep,
+        option: selectedOption,
+        subOption: selectedSubOption,
+        consequence: lastConsequence,
+      },
     ]);
 
-    // If selecting from the starting options, move to consequences
+    // Update selected option and consequence
+    setLastConsequence(selectedOptionData?.consequence || "");
     if (currentStep === "start") {
       setSelectedOption(optionKey);
       setCurrentStep("consequence");
-    } 
-    // If reaching a final outcome, move to the final step
-    else if (currentData[optionKey]?.finalOutcome) {
-      setSelectedOption(optionKey);
+    } else if (selectedOptionData?.finalOutcome) {
+      setSelectedSubOption(optionKey);
       setCurrentStep("final");
-    } 
-    // Otherwise, continue navigating nested options
-    else {
-      setSelectedOption(optionKey);
+    } else {
+      setSelectedSubOption(optionKey);
     }
   };
 
   // Handle "Back" button functionality
   const handleBackClick = () => {
-    const lastStep = history.pop(); // Retrieve the previous step
+    const lastStep = history.pop(); // Retrieve the last step from history
     if (lastStep) {
-      setHistory([...history]); // Update history without the last step
+      setHistory([...history]); // Update history
       setCurrentStep(lastStep.step); // Restore previous step
       setSelectedOption(lastStep.option); // Restore previous option
+      setSelectedSubOption(lastStep.subOption); // Restore sub-option
+      setLastConsequence(lastStep.consequence); // Restore last consequence
     }
   };
 
@@ -54,14 +65,14 @@ const Scenario = ({ scenarioKey, restart }) => {
     <div>
       {/* Display scenario title */}
       <h1>{scenario.title}</h1>
-      
+
       {/* Display description, consequence, or final outcome */}
       <p>
         {currentStep === "start"
-          ? scenario.description
+          ? scenario.description // Show description on start
           : currentStep === "final"
-          ? currentData?.finalOutcome
-          : currentData?.consequence || ""}
+          ? currentData?.finalOutcome // Show final outcome on final step
+          : lastConsequence || ""} {/* Show the consequence */}
       </p>
 
       {currentStep === "final" ? (
@@ -70,9 +81,8 @@ const Scenario = ({ scenarioKey, restart }) => {
           <button onClick={restart}>Restart</button>
         </div>
       ) : (
-        // Display available options and Back button
+        // Display options and "Back" button
         <div>
-          {/* Render buttons for current options */}
           {Object.entries(
             currentStep === "start"
               ? scenario.options
@@ -83,7 +93,7 @@ const Scenario = ({ scenarioKey, restart }) => {
             </button>
           ))}
 
-          {/* Show Back button if history exists */}
+          {/* Show Back button if there's history */}
           {history.length > 0 && (
             <button onClick={handleBackClick}>Back</button>
           )}
